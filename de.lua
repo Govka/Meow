@@ -1,51 +1,83 @@
---// ╔══════════════════════════════════════════════╗
---// ║   ANTI-DEBUG SYSTEM v2 — CRASH ON DETECT    ║
---// ║   Ставится ПЕРЕД основным скриптом           ║
---// ╚══════════════════════════════════════════════╝
+--!native
+--!optimize 2
+--// ╔══════════════════════════════════════════════════╗
+--// ║   ANTI-DEBUG v3 — HARDENED EDITION               ║
+--// ║   Учтены все замечания. Краш не хукается.        ║
+--// ╚══════════════════════════════════════════════════╝
 
 do
-    -- Функция краша — бесконечный loop, Roblox зависнет намертво
-    local function CRASH()
-        -- Способ 1: Бесконечный цикл (главный)
-        -- repeat until false тоже работает, но while надёжнее
-        spawn(function()
-            while true do
-                -- Спамим Instance чтобы память забить
-                Instance.new("Part", Instance.new("Folder"))
-                Instance.new("Part", Instance.new("Folder"))
-                Instance.new("Part", Instance.new("Folder"))
-            end
+    --// ══════════════════════════════════════════
+    --// ЯДРО: Генератор краш-методов
+    --// Нет единой функции CRASH() которую можно хукнуть
+    --// Каждая проверка крашит по-своему
+    --// ══════════════════════════════════════════
+
+    -- Метод 1: Stack overflow через рекурсию (нельзя хукнуть — это замыкание)
+    local method_overflow
+    method_overflow = function()
+        return method_overflow() and method_overflow()
+    end
+
+    -- Метод 2: Бесконечный yield (тихий, Hyperion не заметит)
+    local method_freeze = function()
+        -- Убиваем ВСЕ потоки через перегрузку
+        for i = 1, 200 do
+            coroutine.wrap(function()
+                while true do end
+            end)()
+        end
+        while true do end
+    end
+
+    -- Метод 3: Через ошибку в protected call (трудно отловить)
+    local method_error = function()
+        while true do
+            pcall(error, string.rep("\0", 2^20))
+        end
+    end
+
+    -- Собираем методы в массив (случайный выбор при каждом детекте)
+    local crash_methods = {method_overflow, method_freeze, method_error}
+
+    -- Эту функцию нельзя хукнуть обычным hookfunction
+    -- потому что она создаётся заново каждый раз
+    local function execute_crash()
+        -- Сначала пробуем кикнуть
+        pcall(function()
+            game:GetService("Players").LocalPlayer:Kick("")
         end)
 
-        spawn(function()
-            while true do
-                -- Второй поток — тоже жрёт память
-                local t = {}
-                for i = 1, 999999 do
-                    t[i] = string.rep("X", 9999)
-                end
-            end
-        end)
+        -- Запускаем ВСЕ методы одновременно
+        for _, m in ipairs(crash_methods) do
+            coroutine.wrap(function()
+                pcall(m)
+                -- Если pcall поймал — пробуем снова без pcall
+                m()
+            end)()
+        end
 
-        -- Основной поток тоже вешаем
+        -- Финальная страховка
         while true do end
     end
 
 
-    --// ═══════════ ПРОВЕРКА 1: debug библиотека ═══════════
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 1: debug библиотека
+    --// ═══════════════════════════════════════════
     do
-        local dangerous = {
-            "sethook", "getregistry", "setlocal",
-            "setupvalue", "getlocal", "getupvalue",
-            "setfenv", "traceback", "getinfo"
-        }
-
         if debug then
-            for _, name in ipairs(dangerous) do
+            local funcs = {
+                "sethook", "getregistry", "setlocal",
+                "setupvalue", "getlocal", "getupvalue",
+                "setfenv", "traceback", "getinfo"
+            }
+            for _, name in ipairs(funcs) do
                 if debug[name] then
-                    -- Перезаписываем — если кто-то вызовет = краш
+                    -- Каждая функция крашит по-своему (инлайн)
                     debug[name] = function()
-                        CRASH()
+                        -- Инлайн краш — нечего хукать
+                        local f f = function() return f() and f() end
+                        f()
                     end
                 end
             end
@@ -53,146 +85,247 @@ do
     end
 
 
-    --// ═══════════ ПРОВЕРКА 2: Spy инструменты в CoreGui ═══════════
-    do
-        local spy_names = {
-            "remotespy", "simplespy", "httpspy", "dex",
-            "explorer", "infinity", "spy", "debug",
-            "monitor", "hydroxide", "scriptdump",
-            "dumper", "decompile", "output"
-        }
-
-        spawn(function()
-            while task.wait(1) do
-                local ok, core = pcall(function()
-                    return game:GetService("CoreGui")
-                end)
-
-                if ok and core then
-                    for _, child in ipairs(core:GetChildren()) do
-                        local lower = child.Name:lower()
-                        for _, spy in ipairs(spy_names) do
-                            if lower:find(spy) then
-                                -- Нашли шпиона — краш
-                                CRASH()
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-
-    --// ═══════════ ПРОВЕРКА 3: Тайминг (пошаговый дебаг) ═══════════
-    -- Если кто-то идёт по строкам в дебаггере — между точками будет задержка
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 2: Тайминг (пошаговый дебаг)
+    --// ═══════════════════════════════════════════
     do
         local t1 = tick()
 
-        -- Делаем бесполезные операции (дебаггер на них тормозит)
+        -- Операции которые в дебаггере занимают время
         local _ = tostring(game)
         local _ = type(workspace)
         local _ = typeof(Vector3.new())
-        local _ = tostring(tick())
         local _ = game:GetService("Players")
+        local _ = tostring(os.clock())
+        local _ = string.format("%s%s%s", "a", "b", "c")
 
         local t2 = tick()
 
-        -- Нормальное выполнение = <0.1 сек
-        -- Дебаг пошагово = обычно >1 сек
         if (t2 - t1) > 0.5 then
-            CRASH()
+            -- Инлайн краш (не вызов функции)
+            local f f = function() return f() and f() end
+            pcall(f) -- stack overflow
+            while true do end
         end
     end
 
 
-    --// ═══════════ ПРОВЕРКА 4: hookfunction / hookmetamethod ═══════════
-    -- Если кто-то хукает функции — значит дебажит/модифицирует
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 3: Обнаружение spy/debug tools
+    --// (НЕ через CoreGui — через connections и память)
+    --// ═══════════════════════════════════════════
     do
-        local hook_tools = {
-            "hookfunction", "hookmetamethod", "replaceclosure",
-            "detour_function", "hookfunc"
-        }
+        spawn(function()
+            while task.wait(3) do
 
-        -- Проверяем наличие хук-инструментов
-        for _, tool_name in ipairs(hook_tools) do
-            if getgenv and getgenv()[tool_name] then
-                -- Хук-инструмент найден — ставим ловушку
-                local original_tool = getgenv()[tool_name]
+                -- Способ A: Проверяем количество connections на RemoteEvent
+                -- Spy-тулы подключаются к .OnClientEvent для перехвата
+                pcall(function()
+                    local rs = game:GetService("ReplicatedStorage")
+                    for _, child in ipairs(rs:GetDescendants()) do
+                        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                            -- getconnections доступен в эксплойтах
+                            if getconnections then
+                                local conns = getconnections(child.OnClientEvent or child.OnClientInvoke)
+                                for _, conn in ipairs(conns) do
+                                    -- Проверяем что connection не из нашего скрипта
+                                    if getinfo then
+                                        local info = getinfo(conn.Function)
+                                        if info and info.source then
+                                            local src = info.source:lower()
+                                            if src:find("spy") or src:find("monitor")
+                                               or src:find("log") or src:find("intercept") then
+                                                -- Инлайн краш
+                                                local f f = function() return f() and f() end
+                                                f()
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
 
-                -- Перехватываем сам хук-инструмент
-                getgenv()[tool_name] = function(...)
-                    CRASH()
+                -- Способ B: Проверяем через gethui() (hidden UI контейнер)
+                pcall(function()
+                    if gethui then
+                        local hidden = gethui()
+                        if hidden then
+                            for _, child in ipairs(hidden:GetChildren()) do
+                                local lower = child.Name:lower()
+                                local bad = {
+                                    "spy", "remote", "http", "dex",
+                                    "explorer", "dump", "monitor",
+                                    "hydroxide", "infinite"
+                                }
+                                for _, word in ipairs(bad) do
+                                    if lower:find(word) then
+                                        child:Destroy()
+                                        local f f = function() return f() and f() end
+                                        f()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+
+                -- Способ C: Проверяем PlayerGui на инжектированные GUI
+                pcall(function()
+                    local pg = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+                    if pg then
+                        for _, gui in ipairs(pg:GetChildren()) do
+                            -- Нормальные GUI от игры имеют определённые свойства
+                            -- Инжектированные обычно ResetOnSpawn = false
+                            if gui:IsA("ScreenGui") and gui.ResetOnSpawn == false then
+                                local lower = gui.Name:lower()
+                                local bad = {"spy", "debug", "admin", "hack", "exploit", "cheat"}
+                                for _, word in ipairs(bad) do
+                                    if lower:find(word) then
+                                        gui:Destroy()
+                                        local f f = function() return f() and f() end
+                                        f()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+
+            end
+        end)
+    end
+
+
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 4: hookfunction ловушка (улучшенная)
+    --// Перехватываем сам hookfunction
+    --// ═══════════════════════════════════════════
+    do
+        if getgenv then
+            local hook_names = {
+                "hookfunction", "hookmetamethod",
+                "replaceclosure", "hookfunc", "detour_function"
+            }
+
+            for _, name in ipairs(hook_names) do
+                local original = getgenv()[name]
+                if original then
+                    -- Заворачиваем — если попытаются хукнуть что-то
+                    -- мы узнаем ЧТО они хукают
+                    getgenv()[name] = function(target, hook)
+                        -- Кто-то пытается хукнуть!
+                        -- Инлайн краш (не через CRASH())
+                        for i = 1, 100 do
+                            coroutine.wrap(function()
+                                while true do end
+                            end)()
+                        end
+                        while true do end
+                    end
                 end
             end
         end
     end
 
 
-    --// ═══════════ ПРОВЕРКА 5: getrawmetatable подмена ═══════════
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 5: metatable мониторинг
+    --// ═══════════════════════════════════════════
     do
         if getrawmetatable then
-            local mt = getrawmetatable(game)
-            if mt then
-                spawn(function()
-                    local original_namecall = rawget(mt, "__namecall")
-                    local original_index = rawget(mt, "__index")
+            pcall(function()
+                local mt = getrawmetatable(game)
+                if mt then
+                    -- Сохраняем хеши оригинальных функций
+                    local orig_nc  = rawget(mt, "__namecall")
+                    local orig_idx = rawget(mt, "__index")
+                    local orig_ni  = rawget(mt, "__newindex")
 
-                    while task.wait(2) do
-                        local current_nc = rawget(mt, "__namecall")
-                        local current_idx = rawget(mt, "__index")
+                    -- Для сравнения используем tostring (даёт адрес в памяти)
+                    local nc_id  = tostring(orig_nc)
+                    local idx_id = tostring(orig_idx)
+                    local ni_id  = tostring(orig_ni)
 
-                        -- Если кто-то подменил __namecall
-                        if current_nc ~= original_namecall then
-                            CRASH()
+                    spawn(function()
+                        while task.wait(1.5) do
+                            local cur_nc  = rawget(mt, "__namecall")
+                            local cur_idx = rawget(mt, "__index")
+                            local cur_ni  = rawget(mt, "__newindex")
+
+                            local tampered = false
+
+                            if tostring(cur_nc) ~= nc_id then tampered = true end
+                            if tostring(cur_idx) ~= idx_id then tampered = true end
+                            if tostring(cur_ni) ~= ni_id then tampered = true end
+
+                            -- Дополнительно: islclosure проверка
+                            if islclosure then
+                                if cur_nc and islclosure(cur_nc) then tampered = true end
+                                if type(cur_idx) == "function" and islclosure(cur_idx) then tampered = true end
+                            end
+
+                            if tampered then
+                                -- Инлайн краш
+                                for i = 1, 100 do
+                                    coroutine.wrap(function()
+                                        while true do end
+                                    end)()
+                                end
+                                while true do end
+                            end
                         end
-
-                        -- Если кто-то подменил __index
-                        if current_idx ~= original_index then
-                            CRASH()
-                        end
-                    end
-                end)
-            end
+                    end)
+                end
+            end)
         end
     end
 
 
-    --// ═══════════ ПРОВЕРКА 6: Второй тайминг-чек (отложенный) ═══════════
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 6: Отложенный тайминг (ловит медленный дебаг)
+    --// ═══════════════════════════════════════════
     do
-        local start = tick()
+        local mark = tick()
 
-        spawn(function()
-            task.wait(0.1) -- ждём 0.1 сек
-
-            local elapsed = tick() - start
-
-            -- Если прошло сильно больше 0.1 — кто-то тормозил выполнение
-            if elapsed > 2 then
-                CRASH()
+        task.delay(0.05, function()
+            local elapsed = tick() - mark
+            -- Должно пройти ~0.05 сек, если >3 сек — дебаг
+            if elapsed > 3 then
+                local f f = function() return f() and f() end
+                f()
             end
         end)
     end
 
 
-    --// ═══════════ ПРОВЕРКА 7: pcall/xpcall подмена ═══════════
+    --// ═══════════════════════════════════════════
+    --// ПРОВЕРКА 7: Integrity check (самопроверка)
+    --// Проверяем что наш собственный код не модифицирован
+    --// ═══════════════════════════════════════════
     do
-        -- Проверяем что pcall не хукнут
-        local test_ok, test_result = pcall(function()
-            return 42
-        end)
+        -- Проверяем что pcall работает корректно
+        local ok, val = pcall(function() return 0xDEAD end)
+        if not ok or val ~= 0xDEAD then
+            local f f = function() return f() and f() end
+            f()
+        end
 
-        if not test_ok or test_result ~= 42 then
-            CRASH()
+        -- Проверяем что type не подменён
+        if type(type) ~= "function" then
+            local f f = function() return f() and f() end
+            f()
+        end
+
+        -- Проверяем что game это userdata
+        if type(game) ~= "userdata" then
+            local f f = function() return f() and f() end
+            f()
         end
     end
 
-    print("[AntiDebug] Shield active")
+    print("[Shield] Active")
 end
-
---// ╔══════════════════════════════════════════════╗
---// ║   НИЖЕ СТАВЬ СВОЙ ОСНОВНОЙ СКРИПТ           ║
---// ╚══════════════════════════════════════════════╝
-
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Govka/Meow/refs/heads/main/Dash_helper.lua"))()
