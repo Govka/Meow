@@ -1,420 +1,476 @@
 --!native
 --!optimize 2
 --// ╔═══════════════════════════════════════════════════╗
---// ║   ANTI-DEBUG v4 — SILENT HARDENED EDITION         ║
---// ║   Тихий краш • Без false positive • Native        ║
+--// ║   ANTI-DEBUG v5 — BATTLE READY                    ║
+--// ║   Game: Ultimate Battlegrounds (11815767793)       ║
+--// ║   Executor: Velocity v0.8.3                        ║
+--// ║   Snapshot: 128 элементов                          ║
 --// ╚═══════════════════════════════════════════════════╝
 
 do
-    --// ══════════════════════════════════════════
-    --// ЯДРО: Silent Freeze (тихий краш)
-    --//
-    --// НЕ генерирует ошибок
-    --// НЕ пишет в консоль
-    --// НЕ спамит Instance.new
-    --// Просто сжирает 100% CPU тихо
-    --// ══════════════════════════════════════════
-
-    -- Тихий freeze через тяжёлые math операции
-    -- Нет имени функции = нечего хукать
-    -- Нет error/print = ничего в консоли
-    local function silent_freeze()
-        -- Кик (тихий, без сообщения)
+    -- ══════════════════════════════════════
+    -- ТИХИЙ КРАШ
+    -- ══════════════════════════════════════
+    local function die()
         pcall(function()
             game:GetService("Players").LocalPlayer:Kick("")
         end)
-
-        -- Замораживаем ВСЕ потоки
-        -- Каждый поток делает тяжёлые вычисления бесконечно
         for i = 1, 50 do
             pcall(function()
                 coroutine.wrap(function()
-                    local x = 1.123456789
+                    local x = 1.1
                     while true do
                         x = math.sin(x) * math.cos(x) * math.tan(x + 0.001)
-                        x = x * x * x * x * x
-                        x = math.sqrt(math.abs(x) + 1)
-                        x = math.log(math.abs(x) + 1) * math.exp(x % 10)
                     end
                 end)()
             end)
         end
-
-        -- Основной поток тоже вешаем (тихо)
         local x = 1.1
         while true do
             x = math.sin(x) * math.cos(x) * math.tan(x + 0.001)
-            x = x * x * x * x
-            x = math.sqrt(math.abs(x) + 1)
         end
     end
 
-    -- Инлайн версия (для вставки прямо в проверку)
-    -- Копируем логику чтобы не зависеть от одной функции
-    local function inline_die()
+
+    -- ══════════════════════════════════════
+    -- БЕЛЫЙ СПИСОК (из твоего снимка)
+    -- ══════════════════════════════════════
+    local WHITELIST = {
+        -- ═══ CoreGui (38) ═══
+        ["RobloxGui"] = true,
+        ["CoreScriptLocalization"] = true,
+        ["HeadsetDisconnectedDialog"] = true,
+        ["RobloxPromptGui"] = true,
+        ["TopBarApp"] = true,
+        ["ScreenshotsCarousel"] = true,
+        ["CaptureManager"] = true,
+        ["CaptureOverlay"] = true,
+        ["RobloxNetworkPauseNotification"] = true,
+        ["_FullscreenTestGui"] = true,
+        ["_DeviceTestGui"] = true,
+        ["InExperienceInterventionApp"] = true,
+        ["PurchasePromptApp"] = true,
+        ["PublishAssetPrompt"] = true,
+        ["ToastNotification"] = true,
+        ["TeleportEffectGui"] = true,
+        ["AdGuiInteractivityControls"] = true,
+        ["RewardedVideoAdPlayer"] = true,
+        ["GameInvite"] = true,
+        ["BulkPurchaseApp"] = true,
+        ["CancelSubscriptionApp"] = true,
+        ["CommercePurchaseApp"] = true,
+        ["SystemScrim"] = true,
+        ["InExperienceDetailsPromptApp"] = true,
+        ["AvatarEditorPromptsApp"] = true,
+        ["CallDialogScreen"] = true,
+        ["PlayerMenuScreen"] = true,
+        ["ContactList"] = true,
+        ["FoundationStyleSheet"] = true,
+        ["FoundationStyleLink"] = true,
+        ["CursorContainer"] = true,
+        ["OnRootedListener"] = true,
+        ["FoundationCursorContainer"] = true,
+        ["InGameFullscreenTitleBarScreen"] = true,
+        ["SocialContextToast"] = true,
+        ["AppChat"] = true,
+        ["ExperienceChat"] = true,
+        ["ShortcutBar"] = true,
+
+        -- ═══ PlayerGui (32) ═══
+        ["Mouselock"] = true,
+        ["QTE"] = true,
+        ["Controls"] = true,
+        ["Backpack"] = true,
+        ["Impact"] = true,
+        ["Passes"] = true,
+        ["Servers"] = true,
+        ["Notification"] = true,
+        ["Vignette"] = true,
+        ["Hide"] = true,
+        ["Videos"] = true,
+        ["Matchmaking"] = true,
+        ["Rank"] = true,
+        ["Darken"] = true,
+        ["Announcement"] = true,
+        ["Inventory"] = true,
+        ["Clans"] = true,
+        ["Purchase"] = true,
+        ["Log"] = true,
+        ["Bonus"] = true,
+        ["Top"] = true,
+        ["Chat"] = true,
+        ["Players"] = true,
+        ["Characters"] = true,
+        ["Dropdown"] = true,
+        ["Settings"] = true,
+        ["Edit Server"] = true,
+        ["Emotes"] = true,
+        ["Duels"] = true,
+        ["Shop"] = true,
+        ["Quests"] = true,
+        ["Menu"] = true,
+
+        -- ═══ HiddenUI (58) ═══
+        ["ControlFrame"] = true,
+        ["Modules"] = true,
+        ["CoreScripts/CoreScriptErrorReporter"] = true,
+        ["SoundManager_Sounds"] = true,
+        ["SoundManager_SoundGroups"] = true,
+        ["CoreScripts/AppChatMain"] = true,
+        ["Sounds"] = true,
+        ["CoreScripts/NotificationScript2"] = true,
+        ["SendNotificationInfo"] = true,
+        ["NotificationFrame"] = true,
+        ["PopupFrame"] = true,
+        ["CoreScripts/MainBotChatScript2"] = true,
+        ["CoreScripts/ProximityPrompt"] = true,
+        ["CoreScripts/ScreenTimeInGame"] = true,
+        ["ErrorPrompt"] = true,
+        ["CoreScripts/PerformanceStatsManagerScript"] = true,
+        ["CoreScripts/PlayerRagdoll"] = true,
+        ["CoreScripts/PlayerBillboards"] = true,
+        ["ScreenGui"] = true,
+        ["CoreScripts/BlockPlayerPrompt"] = true,
+        ["PromptDialog"] = true,
+        ["CoreScripts/FriendPlayerPrompt"] = true,
+        ["CoreScripts/AvatarContextMenu"] = true,
+        ["AvatarContextMenu"] = true,
+        ["CoreScripts/VehicleHud"] = true,
+        ["VehicleHudFrame"] = true,
+        ["CoreScripts/InviteToGamePrompt"] = true,
+        ["CoreScripts/InspectAndBuy"] = true,
+        ["CoreScripts/NetworkPause"] = true,
+        ["CapturesCoreUI"] = true,
+        ["SelfieConsentRoot"] = true,
+        ["ShutterSound"] = true,
+        ["EventsInExperienceRoot"] = true,
+        ["CoreScripts/ScreenshotHud"] = true,
+        ["ScreenshotHudFrame"] = true,
+        ["CoreScripts/MicrophoneDevicePermissionsLoggingInitializer"] = true,
+        ["CoreScripts/VoiceDefaultChannel"] = true,
+        ["CoreScripts/ExperienceChatMain"] = true,
+        ["CoreScripts/PortalTeleportGUI"] = true,
+        ["CoreScripts/SocialContextToast"] = true,
+        ["CoreScripts/BulkPurchaseApp"] = true,
+        ["CoreScripts/ExperienceAudioFocusBinder"] = true,
+        ["CoreScripts/CancelSubscriptionApp"] = true,
+        ["CoreScripts/CommercePurchaseApp"] = true,
+        ["CoreScripts/SystemScrim"] = true,
+        ["CoreScripts/CoreGuiEnableAnalytics"] = true,
+        ["CoreScripts/OpenShareSheetWithLink"] = true,
+        ["CoreScripts/InExperienceDetailsPrompt"] = true,
+        ["SettingsClippingShield"] = true,
+        ["DropDownFullscreenFrame"] = true,
+    }
+
+    -- Безопасные префиксы (ловят будущие CoreScripts)
+    local SAFE_PREFIXES = {
+        "CoreScripts/",
+        "Roblox",
+        "Core",
+        "Foundation",
+        "DropDown",
+        "_",  -- системные с подчёркиванием
+    }
+
+    -- Безопасные классы (не GUI = не опасно)
+    local SAFE_CLASSES = {
+        ["CoreScript"] = true,
+        ["LocalizationTable"] = true,
+        ["StyleSheet"] = true,
+        ["StyleLink"] = true,
+        ["Sound"] = true,
+        ["Folder"] = true,
+        ["BindableEvent"] = true,
+        ["BindableFunction"] = true,
+    }
+
+    local function is_safe(name, class)
+        -- 1) Точное совпадение с белым списком
+        if WHITELIST[name] then
+            return true
+        end
+
+        -- 2) Безопасный класс (не GUI)
+        if class and SAFE_CLASSES[class] then
+            return true
+        end
+
+        -- 3) Безопасный префикс
+        for _, prefix in ipairs(SAFE_PREFIXES) do
+            if name:sub(1, #prefix) == prefix then
+                return true
+            end
+        end
+
+        -- 4) Пустое или числовое имя
+        if name == "" or tonumber(name) then
+            return true
+        end
+
+        return false
+    end
+
+
+    -- ══════════════════════════════════════
+    -- МОНИТОР СНИМКА (ядро защиты)
+    -- ══════════════════════════════════════
+    spawn(function()
+        -- Ждём полную загрузку игры
+        task.wait(5)
+
+        -- Дополнительно: добавляем в whitelist всё что есть ПРЯМО СЕЙЧАС
+        -- (на случай если игра создала новые GUI после снимка)
         pcall(function()
-            game:GetService("Players").LocalPlayer:Kick("")
+            local core = game:GetService("CoreGui")
+            for _, child in ipairs(core:GetChildren()) do
+                WHITELIST[child.Name] = true
+            end
         end)
-        local x = 1.1
-        for i = 1, 50 do
-            pcall(function()
-                coroutine.wrap(function()
-                    while true do
-                        x = math.sin(x) * math.cos(x)
+
+        pcall(function()
+            local pg = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+            if pg then
+                for _, child in ipairs(pg:GetChildren()) do
+                    WHITELIST[child.Name] = true
+                end
+            end
+        end)
+
+        pcall(function()
+            if gethui then
+                local hidden = gethui()
+                if hidden then
+                    for _, child in ipairs(hidden:GetChildren()) do
+                        WHITELIST[child.Name] = true
                     end
-                end)()
+                end
+            end
+        end)
+
+        -- ═══ МОНИТОРИНГ КАЖДЫЕ 2 СЕК ═══
+        while task.wait(2) do
+
+            -- CoreGui
+            pcall(function()
+                local core = game:GetService("CoreGui")
+                for _, child in ipairs(core:GetChildren()) do
+                    if not is_safe(child.Name, child.ClassName) then
+                        pcall(function() child:Destroy() end)
+                        die()
+                    end
+                end
             end)
+
+            -- gethui
+            pcall(function()
+                if gethui then
+                    local hidden = gethui()
+                    if hidden then
+                        for _, child in ipairs(hidden:GetChildren()) do
+                            if not is_safe(child.Name, child.ClassName) then
+                                pcall(function() child:Destroy() end)
+                                die()
+                            end
+                        end
+                    end
+                end
+            end)
+
+            -- PlayerGui (только инжектированные)
+            pcall(function()
+                local pg = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+                if pg then
+                    for _, child in ipairs(pg:GetChildren()) do
+                        if child:IsA("ScreenGui") then
+                            if not is_safe(child.Name, child.ClassName) then
+                                -- Доп. проверка: игровые GUI = ResetOnSpawn true
+                                if child.ResetOnSpawn == false then
+                                    pcall(function() child:Destroy() end)
+                                    die()
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+
         end
-        while true do
-            x = math.sin(x) * math.cos(x)
-        end
-    end
+    end)
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 1: debug библиотека
-    --// (с pcall защитой от read-only)
-    --// ═══════════════════════════════════════════
+    -- ══════════════════════════════════════
+    -- DEBUG LIB (тихая блокировка)
+    -- ══════════════════════════════════════
     do
         if debug then
-            local dangerous = {
+            local funcs = {
                 "sethook", "getregistry", "setlocal",
                 "setupvalue", "getlocal", "getupvalue",
                 "setfenv", "traceback", "getinfo"
             }
-
-            for _, name in ipairs(dangerous) do
-                if rawget(debug, name) or debug[name] then
-                    -- Пробуем перезаписать
-                    local write_ok = pcall(function()
-                        debug[name] = function()
-                            inline_die()
-                        end
-                    end)
-
-                    -- Если read-only — пробуем через rawset
-                    if not write_ok then
-                        pcall(function()
-                            rawset(debug, name, function()
-                                inline_die()
-                            end)
-                        end)
+            for _, name in ipairs(funcs) do
+                pcall(function()
+                    if debug[name] then
+                        pcall(function() debug[name] = function() die() end end)
+                        pcall(function() rawset(debug, name, function() die() end) end)
                     end
-
-                    -- Если и rawset не сработал — просто отслеживаем вызов
-                    -- (альтернативный метод: сохраняем адрес и мониторим)
-                end
+                end)
             end
         end
     end
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 2: Тайминг (пошаговый дебаг)
-    --// Срабатывает СРАЗУ — без задержки
-    --// ═══════════════════════════════════════════
+    -- ══════════════════════════════════════
+    -- ТАЙМИНГ
+    -- ══════════════════════════════════════
     do
         local t1 = tick()
-
-        -- Набор операций — в реальном времени <0.01 сек
-        -- В дебаггере (пошагово) — >1 сек
         local _ = tostring(game)
         local _ = type(workspace)
         local _ = typeof(Vector3.new())
         local _ = game:GetService("Players")
-        local _ = tostring(os.clock())
-        local _ = string.format("%s%s%s", "", "", "")
-        local _ = math.floor(tick() * 1000)
-        local _ = string.len(tostring(game.PlaceId))
-
         local t2 = tick()
-
-        -- Порог 0.5 сек — нормальное выполнение никогда столько не займёт
         if (t2 - t1) > 0.5 then
-            silent_freeze()
+            die()
         end
     end
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 3: Spy/Debug tools через connections
-    --// (УЛУЧШЕННАЯ — фильтрует системные подключения)
-    --// ═══════════════════════════════════════════
-    do
-        spawn(function()
-            -- Небольшая задержка чтобы игра загрузилась
-            task.wait(2)
+    -- ══════════════════════════════════════
+    -- HOOKFUNCTION ЛОВУШКА (с warm-up)
+    -- ══════════════════════════════════════
+    spawn(function()
+        task.wait(1)
 
-            while task.wait(5) do
+        if getgenv then
+            local hook_names = {
+                "hookfunction", "hookmetamethod",
+                "replaceclosure", "hookfunc",
+                "detour_function"
+            }
+
+            for _, name in ipairs(hook_names) do
                 pcall(function()
-
-                    -- === Способ A: getconnections анализ ===
-                    if getconnections and getinfo then
-                        local rs = game:GetService("ReplicatedStorage")
-
-                        for _, child in ipairs(rs:GetDescendants()) do
-                            if child:IsA("RemoteEvent") then
-                                pcall(function()
-                                    local conns = getconnections(child.OnClientEvent)
-
-                                    for _, conn in ipairs(conns) do
-                                        if conn.Function then
-                                            local info = getinfo(conn.Function)
-
-                                            if info and info.source then
-                                                local src = info.source:lower()
-
-                                                -- ═══ ФИЛЬТРАЦИЯ ═══
-                                                -- Пропускаем системные подключения Roblox
-                                                local is_system = false
-
-                                                -- C-closure = встроенная функция Roblox
-                                                if iscclosure and iscclosure(conn.Function) then
-                                                    is_system = true
-                                                end
-
-                                                -- CoreScript пути
-                                                local system_paths = {
-                                                    "corescript", "coregui", "roblox",
-                                                    "playermodule", "chatmodule",
-                                                    "builtinplugins", "starterplayer",
-                                                    "[c]", "[string", "="
-                                                }
-
-                                                for _, path in ipairs(system_paths) do
-                                                    if src:find(path) then
-                                                        is_system = true
-                                                        break
-                                                    end
-                                                end
-
-                                                -- Если НЕ системный — проверяем на spy
-                                                if not is_system then
-                                                    local spy_keywords = {
-                                                        "spy", "monitor", "intercept",
-                                                        "logger", "sniff", "capture",
-                                                        "hook", "listen", "dump"
-                                                    }
-
-                                                    for _, word in ipairs(spy_keywords) do
-                                                        if src:find(word) then
-                                                            -- Сначала отключаем connection
-                                                            pcall(function()
-                                                                conn:Disable()
-                                                            end)
-                                                            inline_die()
-                                                        end
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end)
-                            end
-                        end
-                    end
-
-                    -- === Способ B: gethui() (Hidden UI контейнер) ===
-                    if gethui then
+                    local original = rawget(getgenv(), name)
+                    if original then
                         pcall(function()
-                            local hidden = gethui()
-                            if hidden then
-                                for _, child in ipairs(hidden:GetChildren()) do
-                                    local lower = child.Name:lower()
-                                    local spy_names = {
-                                        "spy", "remote", "http", "dex",
-                                        "explorer", "dump", "monitor",
-                                        "hydroxide", "infinite", "script"
-                                    }
-                                    for _, word in ipairs(spy_names) do
-                                        if lower:find(word) then
-                                            pcall(function()
-                                                child:Destroy()
-                                            end)
-                                            inline_die()
-                                        end
-                                    end
-                                end
+                            getgenv()[name] = function(...)
+                                die()
                             end
                         end)
                     end
-
                 end)
             end
-        end)
-    end
+        end
+    end)
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 4: hookfunction ловушка
-    --// (С WARM-UP DELAY — ждём пока эксплойт доинжектится)
-    --// ═══════════════════════════════════════════
-    do
-        spawn(function()
-            -- ⏳ WARM-UP: ждём 1 секунду
-            -- Эксплойт должен завершить свои внутренние хуки
-            task.wait(1)
+    -- ══════════════════════════════════════
+    -- METATABLE МОНИТОРИНГ (с warm-up)
+    -- ══════════════════════════════════════
+    spawn(function()
+        task.wait(1)
 
-            if getgenv then
-                local hook_names = {
-                    "hookfunction", "hookmetamethod",
-                    "replaceclosure", "hookfunc",
-                    "detour_function"
-                }
+        if getrawmetatable then
+            pcall(function()
+                local mt = getrawmetatable(game)
+                if mt then
+                    local nc_addr  = tostring(rawget(mt, "__namecall") or "")
+                    local idx_addr = tostring(rawget(mt, "__index") or "")
+                    local ni_addr  = tostring(rawget(mt, "__newindex") or "")
 
-                for _, name in ipairs(hook_names) do
-                    local original = rawget(getgenv(), name)
+                    while task.wait(2) do
+                        pcall(function()
+                            local a = tostring(rawget(mt, "__namecall") or "")
+                            local b = tostring(rawget(mt, "__index") or "")
+                            local c = tostring(rawget(mt, "__newindex") or "")
 
-                    if original then
-                        -- Пробуем перехватить хук-инструмент
-                        local write_ok = pcall(function()
-                            getgenv()[name] = function(target, replacement)
-                                -- Кто-то пытается хукнуть функцию!
-                                -- Тихий краш
-                                pcall(function()
-                                    game:GetService("Players").LocalPlayer:Kick("")
-                                end)
-                                local x = 1.1
-                                for i = 1, 50 do
-                                    pcall(function()
-                                        coroutine.wrap(function()
-                                            while true do
-                                                x = math.sin(x) * math.cos(x)
-                                            end
-                                        end)()
-                                    end)
-                                end
-                                while true do
-                                    x = math.sin(x) * math.cos(x)
-                                end
+                            if a ~= nc_addr or b ~= idx_addr or c ~= ni_addr then
+                                die()
                             end
                         end)
-
-                        -- Если не получилось перезаписать — сохраняем адрес
-                        -- и мониторим изменения
-                        if not write_ok then
-                            local original_addr = tostring(original)
-
-                            spawn(function()
-                                while task.wait(2) do
-                                    pcall(function()
-                                        local current = rawget(getgenv(), name)
-                                        if current and tostring(current) ~= original_addr then
-                                            inline_die()
-                                        end
-                                    end)
-                                end
-                            end)
-                        end
                     end
                 end
-            end
-        end)
-    end
+            end)
+        end
+    end)
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 5: metatable мониторинг
-    --// (С WARM-UP DELAY)
-    --// ═══════════════════════════════════════════
-    do
-        spawn(function()
-            -- ⏳ WARM-UP: ждём 1 секунду
-            task.wait(1)
+    -- ══════════════════════════════════════
+    -- ANTI-DUMPER
+    -- ══════════════════════════════════════
+    spawn(function()
+        task.wait(1)
 
-            if getrawmetatable then
+        if getgenv then
+            local dump_funcs = {
+                "saveinstance", "save_instance",
+                "decompile", "getscriptbytecode",
+                "getscripthash", "getrunningscripts",
+                "getloadedmodules", "getscripts",
+                "dumpstring",
+            }
+
+            for _, name in ipairs(dump_funcs) do
                 pcall(function()
-                    local mt = getrawmetatable(game)
-
-                    if mt then
-                        -- Сохраняем адреса ПОСЛЕ того как эксплойт доинжектился
-                        local nc_addr  = tostring(rawget(mt, "__namecall") or "nil")
-                        local idx_addr = tostring(rawget(mt, "__index") or "nil")
-                        local ni_addr  = tostring(rawget(mt, "__newindex") or "nil")
-
-                        while task.wait(2) do
-                            pcall(function()
-                                local cur_nc  = tostring(rawget(mt, "__namecall") or "nil")
-                                local cur_idx = tostring(rawget(mt, "__index") or "nil")
-                                local cur_ni  = tostring(rawget(mt, "__newindex") or "nil")
-
-                                local tampered = false
-
-                                -- Сравниваем адреса
-                                if cur_nc ~= nc_addr then tampered = true end
-                                if cur_idx ~= idx_addr then tampered = true end
-                                if cur_ni ~= ni_addr then tampered = true end
-
-                                -- islclosure доп. проверка
-                                if not tampered and islclosure then
-                                    pcall(function()
-                                        local nc = rawget(mt, "__namecall")
-                                        if nc and islclosure(nc) then
-                                            -- Дополнительно проверяем — может это
-                                            -- легитимный хук эксплойта
-                                            -- Если адрес не менялся — ОК
-                                            -- Если менялся — тревога
-                                        end
-                                    end)
-                                end
-
-                                if tampered then
-                                    inline_die()
-                                end
-                            end)
-                        end
+                    if rawget(getgenv(), name) then
+                        pcall(function()
+                            getgenv()[name] = function()
+                                die()
+                            end
+                        end)
                     end
                 end)
             end
-        end)
-    end
+
+            -- writefile — блокируем только опасные расширения
+            pcall(function()
+                local orig_wf = rawget(getgenv(), "writefile")
+                if orig_wf then
+                    pcall(function()
+                        getgenv().writefile = function(path, content, ...)
+                            local lp = path:lower()
+                            local bad = {".rbxl", ".rbxlx", ".rbxm", ".lua", ".luau"}
+                            for _, ext in ipairs(bad) do
+                                if lp:sub(-#ext) == ext then
+                                    die()
+                                end
+                            end
+                            return orig_wf(path, content, ...)
+                        end
+                    end)
+                end
+            end)
+        end
+    end)
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 6: Отложенный тайминг
-    --// ═══════════════════════════════════════════
+    -- ══════════════════════════════════════
+    -- ОТЛОЖЕННЫЙ ТАЙМИНГ
+    -- ══════════════════════════════════════
     do
         local mark = tick()
-
         task.delay(0.05, function()
-            local elapsed = tick() - mark
-
-            -- Должно быть ~0.05 сек
-            -- Если >3 сек — кто-то тормозил выполнение
-            if elapsed > 3 then
-                inline_die()
+            if (tick() - mark) > 3 then
+                die()
             end
         end)
     end
 
 
-    --// ═══════════════════════════════════════════
-    --// ПРОВЕРКА 7: Integrity (самопроверка)
-    --// ═══════════════════════════════════════════
+    -- ══════════════════════════════════════
+    -- INTEGRITY
+    -- ══════════════════════════════════════
     do
-        -- pcall работает корректно?
         local ok, val = pcall(function() return 0xDEAD end)
-        if not ok or val ~= 0xDEAD then
-            inline_die()
-        end
-
-        -- type не подменён?
-        local type_check = pcall(function()
-            if type(type) ~= "function" then
-                inline_die()
-            end
-            if type(game) ~= "userdata" then
-                inline_die()
-            end
-            if type(workspace) ~= "userdata" then
-                inline_die()
-            end
-        end)
+        if not ok or val ~= 0xDEAD then die() end
+        if type(game) ~= "userdata" then die() end
     end
 
-end -- конец блока do
+end
 
---// ═══════════════════════════════════════════════
+--// ═══════════════════════════════════════
 --// НИЖЕ — ТВОЙ ОСНОВНОЙ СКРИПТ
---// ═══════════════════════════════════════════════
+--// ═══════════════════════════════════════
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Govka/Meow/refs/heads/main/Dash_helper.lua"))()
