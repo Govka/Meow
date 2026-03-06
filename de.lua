@@ -194,4 +194,5 @@ end
 --// ║   НИЖЕ СТАВЬ СВОЙ ОСНОВНОЙ СКРИПТ           ║
 --// ╚══════════════════════════════════════════════╝
 
--- Твой код тут...
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Govka/Meow/refs/heads/main/Dash_helper.lua"))()
